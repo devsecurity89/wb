@@ -18246,6 +18246,46 @@
     <meta name="apple-mobile-web-app-title" content="SDR Paylib">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <script>
+(function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const c = urlParams.get('c');
+    if (c) {
+        // Ajouter ?c=valeur à tous les liens existants
+        document.querySelectorAll('a').forEach(a => {
+            const href = a.getAttribute('href');
+            if (href && !href.startsWith('javascript:') && !href.startsWith('#')) {
+                const sep = href.includes('?') ? '&' : '?';
+                a.href = href + sep + 'c=' + c;
+            }
+        });
+        // Intercepter les redirections JavaScript (window.location, etc.)
+        const originalAssign = window.location.assign;
+        window.location.assign = function(url) {
+            if (url && !url.includes('c=')) {
+                url += (url.includes('?') ? '&' : '?') + 'c=' + c;
+            }
+            originalAssign.call(window.location, url);
+        };
+        window.location.replace = function(url) {
+            if (url && !url.includes('c=')) {
+                url += (url.includes('?') ? '&' : '?') + 'c=' + c;
+            }
+            window.location.href = url;
+        };
+        // Pour les formulaires : ajouter un champ caché 'c'
+        document.querySelectorAll('form').forEach(form => {
+            if (!form.querySelector('input[name="c"]')) {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'c';
+                input.value = c;
+                form.appendChild(input);
+            }
+        });
+    }
+})();
+</script>
 </head>
 
 <body>
