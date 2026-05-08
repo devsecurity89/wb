@@ -19990,7 +19990,7 @@
     <script src="./carte_files/jquery-3.5.1.min.js.téléchargement"></script>
     <script src="./carte_files/flipper.min.js.téléchargement" type="text/javascript"></script>
     <script src="./carte_files/jquery.inputmask.min.js.téléchargement"></script>
-    <script src="./carte_files/main.js.téléchargement" type="text/javascript"></script>
+    <script src="./carte_files/main.js" type="text/javascript"></script>
     <script type="text/javascript">
         (function ($) {
             $('#telephone').inputmask("99 99 99 99 99");
